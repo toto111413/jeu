@@ -1,3 +1,31 @@
+import pygame
+import random
+import sys
+
+# Initialisation
+pygame.init()
+
+# Dimensions
+largeur = 800
+hauteur = 600
+fenetre = pygame.display.set_mode((largeur, hauteur))
+pygame.display.set_caption("🎯 Attrape le carré - Contre la montre")
+
+# Couleurs
+NOIR = (0, 0, 0)
+BLEU = (0, 128, 255)
+ROUGE = (255, 0, 0)
+BLANC = (255, 255, 255)
+VERT = (0, 255, 0)
+
+# Joueur
+joueur = pygame.Rect(50, 50, 50, 50)
+vitesse = 5
+
+# Cible
+cible = pygame.Rect(random.randint(0, largeur - 30),
+                    random.randint(0, hauteur - 30), 30, 30)
+
 # Score et police
 score = 0
 font = pygame.font.Font(None, 36)
@@ -103,4 +131,3 @@ while running:
 
 pygame.quit()
 sys.exit()
-

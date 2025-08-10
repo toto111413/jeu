@@ -1,133 +1,162 @@
-import pygame
+import turtle
 import random
-import sys
+import time
+import os
 
-# Initialisation
-pygame.init()
-
-# Dimensions
-largeur = 800
-hauteur = 600
-fenetre = pygame.display.set_mode((largeur, hauteur))
-pygame.display.set_caption("🎯 Attrape le carré - Contre la montre")
-
-# Couleurs
-NOIR = (0, 0, 0)
-BLEU = (0, 128, 255)
-ROUGE = (255, 0, 0)
-BLANC = (255, 255, 255)
-VERT = (0, 255, 0)
-
-# Joueur
-joueur = pygame.Rect(50, 50, 50, 50)
-vitesse = 5
-
-# Cible
-cible = pygame.Rect(random.randint(0, largeur - 30),
-                    random.randint(0, hauteur - 30), 30, 30)
-
-# Score et police
+# === Variables === #
 score = 0
-font = pygame.font.Font(None, 36)
-grosse_font = pygame.font.Font(None, 72)
+temps_restant = 30
+jeu_termine = False
+highscore = 0
+vitesse_cible = 500  # en ms (diminue avec score)
+niveau = 1
 
-# Timer
-temps_max = 30  # secondes
+# === Charger high score === #
+if os.path.exists("highscore.txt"):
+    with open("highscore.txt", "r") as f:
+        try:
+            highscore = int(f.read())
+        except:
+            highscore = 0
 
-# Charger le son
-try:
-    son_pop = pygame.mixer.Sound("pop.wav")
-except:
-    son_pop = None
-    print("⚠️ Fichier 'pop.wav' introuvable ! Le son sera désactivé.")
+# === Fenêtre === #
+fenetre = turtle.Screen()
+fenetre.title("🎯 Clic Mania X")
+fenetre.bgcolor("#222222")
+fenetre.setup(width=700, height=700)
 
-# Rejouer : bouton
-bouton_rejouer = pygame.Rect(largeur // 2 - 80, hauteur // 2 + 80, 160, 50)
+# === Stylo général === #
+stylo = turtle.Turtle()
+stylo.hideturtle()
+stylo.penup()
 
+# === Cible === #
+cible = turtle.Turtle()
+cible.shape("circle")
+cible.color("red")
+cible.penup()
+cible.speed(0)
+cible.shapesize(2)
 
-def initialiser_jeu():
-    global joueur, cible, score, temps_debut, jeu_termine
-    joueur.x, joueur.y = 50, 50
-    cible.x = random.randint(0, largeur - cible.width)
-    cible.y = random.randint(0, hauteur - cible.height)
-    score = 0
-    temps_debut = pygame.time.get_ticks()
-    jeu_termine = False
+# === Score === #
+score_affiche = turtle.Turtle()
+score_affiche.hideturtle()
+score_affiche.penup()
+score_affiche.goto(0, 300)
 
+# === Chronomètre === #
+chrono = turtle.Turtle()
+chrono.hideturtle()
+chrono.penup()
+chrono.goto(0, 260)
 
-initialiser_jeu()
-
-# Boucle
-clock = pygame.time.Clock()
-running = True
-
-while running:
-    fenetre.fill(NOIR)
-
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-
-        if jeu_termine and event.type == pygame.MOUSEBUTTONDOWN:
-            if bouton_rejouer.collidepoint(event.pos):
-                initialiser_jeu()
-
+# === Déplacement automatique === #
+def auto_move():
     if not jeu_termine:
-        # Timer
-        temps_actuel = (pygame.time.get_ticks() - temps_debut) / 1000
-        temps_restant = max(0, int(temps_max - temps_actuel))
+        deplacer_cible()
+        fenetre.ontimer(auto_move, max(200, vitesse_cible - score * 10))
 
-        if temps_restant <= 0:
-            jeu_termine = True
+# === Score update === #
+def mettre_a_jour_score():
+    score_affiche.clear()
+    score_affiche.write(f"Score : {score}   |   High Score : {highscore}   |   Niveau : {niveau}", align="center", font=("Arial", 16, "bold"))
 
-        # Contrôles
-        touches = pygame.key.get_pressed()
-        if touches[pygame.K_LEFT]:
-            joueur.x -= vitesse
-        if touches[pygame.K_RIGHT]:
-            joueur.x += vitesse
-        if touches[pygame.K_UP]:
-            joueur.y -= vitesse
-        if touches[pygame.K_DOWN]:
-            joueur.y += vitesse
-
-        # Collision
-        if joueur.colliderect(cible):
-            score += 1
-            cible.x = random.randint(0, largeur - cible.width)
-            cible.y = random.randint(0, hauteur - cible.height)
-            if son_pop:
-                son_pop.play()
-
-        # Dessin
-        pygame.draw.rect(fenetre, BLEU, joueur)
-        pygame.draw.rect(fenetre, ROUGE, cible)
-
-        # Score et temps
-        texte_score = font.render(f"Score : {score}", True, BLANC)
-        texte_temps = font.render(f"Temps restant : {temps_restant}s", True,
-                                  BLANC)
-        fenetre.blit(texte_score, (10, 10))
-        fenetre.blit(texte_temps, (10, 50))
+# === Chrono update === #
+def mise_a_jour_temps():
+    global temps_restant, jeu_termine
+    if temps_restant > 0:
+        temps_restant -= 1
+        chrono.clear()
+        chrono.write(f"Temps restant : {temps_restant}s", align="center", font=("Arial", 14, "normal"))
+        fenetre.ontimer(mise_a_jour_temps, 1000)
     else:
-        # Fin du jeu
-        message = grosse_font.render("⏰ Fin du jeu !", True, BLANC)
-        score_final = font.render(f"Ton score : {score}", True, BLANC)
-        texte_bouton = font.render("Rejouer", True, NOIR)
+        fin_jeu()
 
-        fenetre.blit(
-            message,
-            (largeur // 2 - message.get_width() // 2, hauteur // 2 - 80))
-        fenetre.blit(
-            score_final,
-            (largeur // 2 - score_final.get_width() // 2, hauteur // 2 - 20))
+# === Clic sur la cible === #
+def clique(x, y):
+    global score, niveau, vitesse_cible
+    if not jeu_termine:
+        if cible.distance(x, y) < 30:
+            score += 1
+            if score % 5 == 0:
+                niveau += 1
+                vitesse_cible = max(200, vitesse_cible - 50)
+            effet_visuel()
+            mettre_a_jour_score()
 
-        pygame.draw.rect(fenetre, VERT, bouton_rejouer)
-        fenetre.blit(texte_bouton,
-                     (bouton_rejouer.x + 30, bouton_rejouer.y + 10))
+# === Déplacer cible === #
+def deplacer_cible():
+    x = random.randint(-300, 300)
+    y = random.randint(-250, 250)
+    cible.goto(x, y)
 
-    pygame.display.flip()
-    clock.tick(60)
+# === Effet visuel rapide === #
+def effet_visuel():
+    couleur = random.choice(["yellow", "cyan", "lime", "magenta", "orange", "white"])
+    cible.color(couleur)
+    cible.shapesize(random.uniform(1.5, 3.5))
 
-pygame.quit()
-sys.exit()
+# === Fin de jeu === #
+def fin_jeu():
+    global jeu_termine, highscore
+    jeu_termine = True
+    cible.hideturtle()
+    chrono.clear()
+    score_affiche.clear()
+
+    if score > highscore:
+        highscore = score
+        with open("highscore.txt", "w") as f:
+            f.write(str(highscore))
+
+    stylo.goto(0, 30)
+    stylo.write(f"🎉 Temps écoulé ! Score final : {score}", align="center", font=("Arial", 18, "bold"))
+    stylo.goto(0, -10)
+    stylo.write(f"🏆 High Score : {highscore}", align="center", font=("Arial", 14, "normal"))
+    stylo.goto(0, -50)
+    stylo.write("Clique ici pour rejouer", align="center", font=("Arial", 14, "italic"))
+    fenetre.onclick(rejouer)
+
+# === Rejouer === #
+def rejouer(x, y):
+    if -150 < x < 150 and -70 < y < -30:
+        initialiser_jeu()
+
+# === Initialiser jeu === #
+def initialiser_jeu():
+    global score, temps_restant, jeu_termine, niveau, vitesse_cible
+    score = 0
+    temps_restant = 30
+    jeu_termine = False
+    niveau = 1
+    vitesse_cible = 500
+    stylo.clear()
+    chrono.clear()
+    cible.color("red")
+    cible.shapesize(2)
+    cible.showturtle()
+    mettre_a_jour_score()
+    deplacer_cible()
+    mise_a_jour_temps()
+    auto_move()
+
+# === Menu d'accueil === #
+def menu_accueil():
+    stylo.clear()
+    stylo.goto(0, 50)
+    stylo.write("🎯 Bienvenue dans Clic Mania X 🎯", align="center", font=("Arial", 22, "bold"))
+    stylo.goto(0, 10)
+    stylo.write("Clique n'importe où pour démarrer", align="center", font=("Arial", 14, "normal"))
+    fenetre.onclick(start_game)
+
+# === Démarrer jeu === #
+def start_game(x=None, y=None):
+    fenetre.onclick(None)
+    initialiser_jeu()
+    cible.onclick(clique)
+
+# === Lancement === #
+menu_accueil()
+turtle.mainloop()
+
+
